@@ -1,5 +1,5 @@
 # we may use the gitignore generators
-
+.env
 # Logs
 logs
 *.log
