@@ -29,19 +29,13 @@ const deleteFromCloudinary = async (fileUrl) => {
     throw new ApiError(400, "File URL cannot be null or undefined");
   }
 
-  // console.log("File URL while deletion is:", fileUrl);
-
   try {
-    // Extract the public_id from the fileUrl
-    const urlParts = fileUrl.split('/');
+    const urlParts = fileUrl.split("/");
     const fileNameWithExtension = urlParts[urlParts.length - 1]; // Extract last part (e.g., s2yxfcrfiigmk2m1aywi.png)
-    const publicId = fileNameWithExtension.split('.')[0]; // Remove the file extension
+    const publicId = fileNameWithExtension.split(".")[0]; // Remove the file extension
 
-    // console.log("Extracted public_id is:", publicId);
-
-    // Call Cloudinary's destroy method
     const res = await cloudinary.uploader.destroy(publicId, {
-      resource_type: "image", // Use the correct resource type
+      resource_type: "image",
     });
 
     console.log("Deletion response:", res);
@@ -53,5 +47,27 @@ const deleteFromCloudinary = async (fileUrl) => {
   }
 };
 
+const deletevideoFromCloudinary = async (fileUrl) => {
+  if (!fileUrl) {
+    throw new ApiError(400, "File URL cannot be null or undefined");
+  }
 
-export { uploadOnCloudinary, deleteFromCloudinary };
+  try {
+    const urlParts = fileUrl.split("/");
+    const fileNameWithExtension = urlParts[urlParts.length - 1]; // Extract last part (e.g., s2yxfcrfiigmk2m1aywi.png)
+    const publicId = fileNameWithExtension.split(".")[0]; // Remove the file extension
+
+    const res = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "video",
+    });
+
+    console.log("Deletion response:", res);
+
+    return res;
+  } catch (error) {
+    console.error("Error during deletion:", error);
+    throw new ApiError(400, "File cannot be deleted");
+  }
+};
+
+export { uploadOnCloudinary, deleteFromCloudinary, deletevideoFromCloudinary };
