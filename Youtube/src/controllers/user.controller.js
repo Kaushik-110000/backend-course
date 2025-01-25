@@ -360,6 +360,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         as: "subscribers",
       },
     },
+
     {
       $lookup: {
         from: "subscriptions",
@@ -368,6 +369,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         as: "subscribedTo",
       },
     },
+    
     {
       $addFields: {
         subscribersCount: {

@@ -63,7 +63,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     },
   ]);
 
-  if (!data) {
+  if (data.length == 0) {
     throw new ApiError(400, "Videos not found");
   }
 
@@ -95,8 +95,6 @@ const publishAVideo = asyncHandler(async (req, res) => {
   if (!thumbNail || !videoFile) {
     throw new ApiError(500, "Your files cannot be uploaded");
   }
-
-  const duration = 10;
   const owner = user._id;
   const video = await Video.create({
     title,
