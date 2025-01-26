@@ -8,7 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 const toggleSubscription = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
   // toggle subscription
-  const user = req.user;
+  const user = req.user; 
   // console.log(res.u/)
   if (!user?._id) {
     throw new ApiError(400, "User not authenticated");
