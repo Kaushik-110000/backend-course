@@ -20,7 +20,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
   const totalVideos = await Video.countDocuments({
     owner: userId,
     ...(query && { title: { $regex: query, $options: "i" } }), // Apply query filter if provided
-  });
+  }); 
 
   const data = await Video.aggregate([
     {
