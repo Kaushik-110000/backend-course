@@ -20,7 +20,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
   const totalVideos = await Video.countDocuments({
     owner: userId,
     ...(query && { title: { $regex: query, $options: "i" } }), // Apply query filter if provided
-  }); 
+  });
 
   const data = await Video.aggregate([
     {
@@ -116,6 +116,7 @@ const getVideoById = asyncHandler(async (req, res) => {
   if (!videoId) {
     throw new ApiError(400, "Video id not found");
   }
+  await Video.findByIdAndUpdate(videoId, { $inc: { views: 1 } }, { new: true });
   const video = await Video.aggregate([
     {
       $match: {
@@ -140,10 +141,11 @@ const getVideoById = asyncHandler(async (req, res) => {
       },
     },
   ]);
-  if (!video) {
-    throw new ApiError("Video not found");
+  if (video.length == 0) {
+    return res.status(200).json(new ApiResponse(200, video, "No video found"));
   }
-  console.log(video);
+
+  // console.log(video);
   return res.status(200).json(new ApiResponse(200, video, "Video found"));
 });
 
