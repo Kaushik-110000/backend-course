@@ -101,7 +101,7 @@ function Slider() {
         ) : null}
       </div>
 
-      <div className="flex-1 p-4 bg-black ml-13 mt-11 pt-8">
+      <div className="flex-1 p-4 bg-black ml-13  mt-11 pt-8">
         <Outlet />
       </div>
     </div>

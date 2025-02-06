@@ -55,10 +55,10 @@ function App() {
   }, []);
 
   return !loading ? (
-    <>
+    <div className="bg-black h-[100vh]">
       <Header />
       <Slider />
-    </>
+    </div>
   ) : null;
 }
 
