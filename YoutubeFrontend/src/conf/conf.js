@@ -1,4 +1,4 @@
 const conf={
-    serverUrl : "http://localhost:8010/api/v1"
+    serverUrl : "https://videotubee-backend.onrender.com"
 }
 export default conf
