@@ -1,3 +1,5 @@
+Deployed link : https://videotube-inky.vercel.app/
+
 Youtube is a full stack MERN project which contains all the basic features of any video platform .
 
 Major features :
