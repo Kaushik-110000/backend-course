@@ -2,15 +2,15 @@ import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-const watchHistorySchema = new Schema({
-  videoWatched: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Video",
-  },
-  durationWatched: {
-    type: Number,
-  },
-});
+// const watchHistorySchema = new Schema({
+//   videoWatched: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: "Video",
+//   },
+//   durationWatched: {
+//     type: Number,
+//   },
+// });
 
 const userSchema = new Schema(
   {
@@ -43,7 +43,8 @@ const userSchema = new Schema(
       type: String,
     },
     watchHistory: {
-      type: [watchHistorySchema],
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "Video",
       required: true,
     },
     password: {
@@ -64,13 +65,9 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-
-
 userSchema.methods.isPasswordCorrect = async function (tpassword) {
   return await bcrypt.compare(tpassword, this.password);
 };
-
-
 
 userSchema.methods.generateAccessToken = function () {
   return jwt.sign(

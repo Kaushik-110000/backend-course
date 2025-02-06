@@ -8,7 +8,9 @@ import {
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import fs from "fs";
 const generateAccessandRefreshTokens = async (userId) => {
+  console.log("hello");
   try {
     console.log("user id is ", userId);
     const user = await User.findById(userId);
@@ -32,7 +34,7 @@ const registerUser = asyncHandler(async (req, res) => {
   const { userName, fullName, email, password } = req.body;
   console.log(userName, email);
 
-  // console.log(req);
+  console.log(req);
   // console.log(req.body);
 
   if (
@@ -41,17 +43,10 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required");
   }
 
-  const existedUser = await User.findOne({
-    $or: [{ userName }, { email }],
-  });
-  if (existedUser) {
-    throw new ApiError(409, "User already exists");
-  }
-
-  console.log("req files", req.files);
   const avatarLocalPath = req.files?.avatar[0]?.path;
 
   let coverImagePath;
+
   if (
     req.files &&
     Array.isArray(req.files.coverImage) &&
@@ -64,12 +59,24 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar image is required");
   }
 
+  const existedUser = await User.findOne({
+    $or: [{ userName }, { email }],
+  });
+
+  if (existedUser) {
+    if (avatarLocalPath) fs.unlinkSync(avatarLocalPath);
+    if (coverImagePath) fs.unlinkSync(coverImagePath);
+    throw new ApiError(409, "User already exists");
+  }
+
   const avatar = await uploadOnCloudinary(avatarLocalPath);
-  const coverImage = await uploadOnCloudinary(coverImagePath);
 
   if (!avatar) {
+    if (coverImagePath) fs.unlinkSync(coverImagePath);
     throw new ApiError(400, "Kindly, reupload the avatar image");
   }
+
+  const coverImage = await uploadOnCloudinary(coverImagePath);
 
   const user = await User.create({
     fullName,
@@ -107,7 +114,7 @@ const loginUser = asyncHandler(async (req, res) => {
   });
 
   if (!theUser) {
-    throw new ApiError(404, "User does not exists");
+    throw new ApiError(405, "User does not exists");
   }
 
   const passCheck = await theUser.isPasswordCorrect(password);
@@ -120,30 +127,30 @@ const loginUser = asyncHandler(async (req, res) => {
     theUser._id
   );
 
-  const loggedInUser = await User.findById(theUser._id).select(
-    " -password -refreshToken"
-  );
+  const loggedInUser = await User.findById(theUser._id).select(" -password ");
 
   const options = {
     httpOnly: true,
     secure: true,
   };
 
-  return res
-    .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json(
-      new ApiResponse(
-        200,
-        {
-          user: loggedInUser,
-          accessToken,
-          refreshToken,
-        },
-        "User logged in successfully"
-      )
-    );
+  res.cookie("refreshToken", refreshToken, {
+    ...options,
+    maxAge: 230 * 24 * 60 * 60 * 1000,
+  });
+  res.cookie("accessToken", accessToken, options);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        user: loggedInUser,
+        accessToken,
+        refreshToken,
+      },
+      "User logged in successfully"
+    )
+  );
 });
 
 const logOutUser = asyncHandler(async (req, res) => {
@@ -175,14 +182,20 @@ const getAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
     req.cookies?.refreshToken || req.body.refreshToken;
 
+  console.log(incomingRefreshToken);
+  console.log(req.cookies);
+
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorised Request");
   }
+
   try {
     const decodedToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET
     );
+
+    console.log(decodedToken);
 
     const user = await User.findById(decodedToken?._id);
 
@@ -190,30 +203,34 @@ const getAccessToken = asyncHandler(async (req, res) => {
       throw new ApiError(403, "Invalid refresh token");
     }
 
+    console.log(user);
+
     if (incomingRefreshToken !== user?.refreshToken) {
       throw new ApiError(401, "Refresh token expired or invalid");
+    } else {
+      const options = {
+        httpOnly: true,
+        secure: true,
+      };
+
+      const { accessToken, refreshToken } =
+        await generateAccessandRefreshTokens(user._id);
+
+      res.cookie("refreshToken", refreshToken, {
+        ...options,
+        maxAge: 230 * 24 * 60 * 60 * 1000,
+      });
+      res.cookie("accessToken", accessToken, options);
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            { accessToken, refreshToken },
+            "Access Token refreshed successfully"
+          )
+        );
     }
-
-    const options = {
-      httpOnly: true,
-      secure: true,
-    };
-
-    const { accessToken, newRT } = await generateAccessandRefreshTokens(
-      user._id
-    );
-
-    return res
-      .status(200)
-      .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRT, options)
-      .json(
-        new ApiResponse(
-          200,
-          { accessToken, refreshToken: newRT },
-          "Access Token refreshed successfully"
-        )
-      );
   } catch (error) {
     throw new ApiError(401, error?.message || "Invalid refresh Token");
   }
@@ -222,7 +239,7 @@ const getAccessToken = asyncHandler(async (req, res) => {
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   const user = await User.findById(req.user?._id);
-  console.log("The user is ",user);
+  console.log("The user is ", user);
 
   const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
   if (!isPasswordCorrect) {
@@ -339,9 +356,9 @@ const updateCoverImage = asyncHandler(async (req, res) => {
 });
 
 const getUserChannelProfile = asyncHandler(async (req, res) => {
-  const { username } = req.params;
-  if (!username?.trim()) {
-    throw new ApiError(400, "UserName is missing");
+  const { userId } = req.params;
+  if (!userId?.trim()) {
+    throw new ApiError(400, "User Id is missing");
   }
 
   //using the $ sign before the name of fields
@@ -349,7 +366,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
   const channel = await User.aggregate([
     {
       $match: {
-        userName: username?.toLowerCase(),
+        _id: new mongoose.Types.ObjectId(userId),
       },
     },
     {
@@ -369,7 +386,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         as: "subscribedTo",
       },
     },
-    
+
     {
       $addFields: {
         subscribersCount: {
@@ -398,7 +415,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         coverImage: 1,
         email: 1,
       },
-    }
+    },
   ]);
 
   if (!channel?.length) {
@@ -416,7 +433,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
   const data = await User.aggregate([
     {
       $match: {
-        id: new mongoose.Types.ObjectId(req.user._id),
+        _id: new mongoose.Types.ObjectId(req.user._id),
       },
     },
     {
@@ -435,6 +452,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
               pipeline: [
                 {
                   $project: {
+                    _id: 1,
                     fullName: 1,
                     userName: 1,
                     avatar: 1,
@@ -455,7 +473,18 @@ const getWatchHistory = asyncHandler(async (req, res) => {
     },
   ]);
 
-  return res.status(200).json(new ApiResponse(200, data,"Successfully fetched watch history"));
+  console.log(data);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, data, "Successfully fetched watch history"));
+});
+
+const checkRefreshToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies?.refreshToken || req.body.refreshToken;
+  if (incomingRefreshToken) return res.status(200).json(200);
+  else return res.status(201).json(201);
 });
 
 export {
@@ -470,4 +499,5 @@ export {
   updateCoverImage,
   getUserChannelProfile,
   getWatchHistory,
+  checkRefreshToken,
 };

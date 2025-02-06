@@ -10,8 +10,65 @@ import {
   deletevideoFromCloudinary,
 } from "../utils/cloudinary.js";
 
+const AllVid = asyncHandler(async (req, res) => {
+  const {
+    page = 1,
+    limit = 6,
+    query,
+    sortBy = "createdAt",
+    sortType = 1,
+  } = req.query;
+  console.log(req.query);
+  
+  const data = await Video.aggregate([
+    {
+      $match: {
+        isPublished: true,
+      },
+    },
+    {
+      $sort: {
+        [sortBy]: Number(sortType),
+      },
+    },
+    {
+      $skip: (Number(page) - 1) * Number(limit),
+    },
+    {
+      $limit: Number(limit),
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "owner",
+        foreignField: "_id",
+        as: "owner",
+        pipeline: [
+          {
+            $project: {
+              fullName: 1,
+              userName: 1,
+              avatar: 1,
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return res.status(200).json(new ApiResponse(200, data, "Videos fetched"));
+});
+
+// for a single user
 const getAllVideos = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 2, query, sortBy, sortType, userId } = req.query;
+  const {
+    page = 1,
+    limit = 100,
+    query,
+    sortBy = "createdAt",
+    sortType = 1,
+    userId,
+  } = req.query;
   // get all videos based on query, sort, pagination
   if (!userId) {
     throw new ApiError(400, "User id is missing");
@@ -62,11 +119,6 @@ const getAllVideos = asyncHandler(async (req, res) => {
       },
     },
   ]);
-
-  if (data.length == 0) {
-    throw new ApiError(400, "Videos not found");
-  }
-
   return res.status(200).json(new ApiResponse(200, data, "Videos fetched"));
 });
 
@@ -143,6 +195,15 @@ const getVideoById = asyncHandler(async (req, res) => {
   ]);
   if (video.length == 0) {
     return res.status(200).json(new ApiResponse(200, video, "No video found"));
+  }
+
+  const user = req.user;
+  if (user) {
+    await User.findByIdAndUpdate(
+      user._id,
+      { $addToSet: { watchHistory: videoId } },
+      { new: true }
+    );
   }
 
   // console.log(video);
@@ -227,4 +288,5 @@ export {
   updateVideo,
   deleteVideo,
   togglePublishStatus,
+  AllVid,
 };

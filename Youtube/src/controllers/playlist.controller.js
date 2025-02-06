@@ -183,15 +183,24 @@ const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
 
 const deletePlaylist = asyncHandler(async (req, res) => {
   const { playlistId } = req.params;
-  //  delete playlist
+
+  const userId = req.user?._id;
+  if (!userId) throw new ApiError(404, "User is not authenticated");
+
   if (!playlistId) {
+    //  delete playlist
     throw new ApiError(404, "choose the Playlist");
   }
+
   const playlist = await Playlist.findById(playlistId);
   if (!playlist) {
     throw new ApiError(404, "Playlist not found");
   }
-
+  console.log(playlist.owner, userId);
+  if (userId.toString() !== playlist.owner.toString()) {
+    console.log(userId, playlist.owner);
+    throw new ApiError(404, "you cannot delete");
+  }
   await Playlist.findByIdAndDelete(playlistId);
   return res
     .status(200)
