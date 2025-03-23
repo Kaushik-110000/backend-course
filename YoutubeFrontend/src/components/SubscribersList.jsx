@@ -39,7 +39,7 @@ function SubscribersList() {
           ))}
         </div>
       ) : channels?.length > 0 ? (
-        <div className="flex ">
+        <div className="flex flex-wrap">
           {channels.map((channel) => (
             <div
               key={channel._id}
